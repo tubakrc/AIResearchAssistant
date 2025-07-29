@@ -20,13 +20,13 @@ def save_to_txt(data, filename: str = "research_output.txt") -> str:
     filepath = os.path.join(RESULTS_DIR, filename)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Önce eski dosya varsa yedekle
+    # Save if there is an old file
     if os.path.exists(filepath):
         backup_name = f"research_output_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         backup_path = os.path.join(RESULTS_DIR, backup_name)
         shutil.copy2(filepath, backup_path)
 
-    # Dosya içeriğini hazırla
+    # Prepare the file content
     try:
         formatted_text = (
             f"--- Research Output ---\n"
@@ -40,7 +40,7 @@ def save_to_txt(data, filename: str = "research_output.txt") -> str:
     except AttributeError:
         formatted_text = f"--- Research Output ---\nTimestamp: {timestamp}\n\n{str(data)}\n\n"
 
-    # Yeni içeriği dosyaya yaz (w modu ile, eskiyi siler)
+    # Write the new content to the file
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(formatted_text)
