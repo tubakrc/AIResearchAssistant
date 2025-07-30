@@ -1,9 +1,10 @@
 # AI Research Assistant
 
 Check out the app below ➡️➡️➡️
+
 🔗 [https://ai-research-assistant25.streamlit.app/]
 
-# 🧠 AI Research Assistant – with DuckDuckGo, Wikipedia & Gemini
+## 🧠 AI Research Assistant – with DuckDuckGo, Wikipedia & Gemini
 
 An AI-powered research agent that automates web + Wikipedia search using tools, summarizes results with Gemini (Google's LLM), and lets users download clean summaries — all through a user-friendly Streamlit interface.
 
