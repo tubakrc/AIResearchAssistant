@@ -1,6 +1,7 @@
 # AI Research Assistant
 
-🔎🔗 [https://ai-research-assistant25.streamlit.app/]
+Check out the app below ➡️➡️➡️
+🔗 [https://ai-research-assistant25.streamlit.app/]
 
 # 🧠 AI Research Assistant – with DuckDuckGo, Wikipedia & Gemini
 
