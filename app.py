@@ -9,6 +9,15 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 import logging
 import os
 
+page_bg = """
+<style>
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(to bottom right, #4facfe, #8e44ad);
+}
+</style>
+"""
+st.markdown(page_bg, unsafe_allow_html=True)
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
@@ -112,4 +121,5 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("❌ Failed to parse response.")
                 st.exception(e)
+
 
