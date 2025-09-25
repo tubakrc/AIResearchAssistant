@@ -65,7 +65,7 @@ if st.button("Run Agent"):
     if not query:
         st.warning("Please enter a query before running.")
     else:
-        with st.spinner("Thinking... 🧠"):
+        with st.spinner("Thinking... 🧠🧠🧠"):
             try:
                 raw_response = agent_executor.invoke({"query": query})
                 raw_output = raw_response.get("output", "")
@@ -112,3 +112,4 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("❌ Failed to parse response.")
                 st.exception(e)
+
