@@ -20,8 +20,8 @@ class ResearchResponse(BaseModel):
 
 # Initialize Gemini LLM
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.3
+    model="gemini-2.5-chat",
+    temperature=0.5
 )
 
 # Parser for structured agent response
@@ -77,6 +77,7 @@ try:
 except Exception as e:
     print("\n❌ Error parsing response:", e)
     print("📦 Raw Response:\n", raw_response)
+
 
 
 
