@@ -35,7 +35,7 @@ class ResearchResponse(BaseModel):
 tools = get_tools()
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash-001",
+    model="gemini-1.5-flash-002",
     temperature=0.7
 )
 
@@ -121,6 +121,7 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("❌ Failed to parse response.")
                 st.exception(e)
+
 
 
 
