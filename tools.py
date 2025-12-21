@@ -1,6 +1,8 @@
 from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
 from langchain_community.utilities import WikipediaAPIWrapper
-from langchain_core.tools import tool
+
+from langchain.tools import Tool
+
 from datetime import datetime
 from typing import Optional
 import os
@@ -54,24 +56,25 @@ def save_to_txt_wrapper(data: str) -> str:
 
 def get_tools():
     search = DuckDuckGoSearchRun()
-    search_tool = tool(
+    search_tool = Tool(
         name="search",
         func=search.run,
         description="Search the web for up-to-date information using DuckDuckGo.",
     )
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
-    wiki_tool = tool(
+    wiki_tool = Tool(
         name="wikipedia",
         func=WikipediaQueryRun(api_wrapper=api_wrapper).run,
         description="Search concise summaries from Wikipedia.",
     )
 
-    save_tool = tool(
+    save_tool = Tool(
         name="save_text_to_file",
         func=save_to_txt_wrapper,
         description="Saves research data to a timestamped text file.",
     )
 
     return [search_tool, wiki_tool, save_tool]
+
 
