@@ -7,8 +7,8 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from langchain_core.output_parsers import PydanticOutputParser
 
-from langchain.agents import AgentExecutor
-from langchain.agents import create_tool_calling_agent
+from langchain.agents.agent import AgentExecutor
+from langchain.agents.tool_calling_agent.base import create_tool_calling_agent
 
 from langchain_core.tools import Tool
 
@@ -133,6 +133,7 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("❌ Failed to parse response.")
                 st.exception(e)
+
 
 
 
