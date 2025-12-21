@@ -1,7 +1,8 @@
 from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
 from langchain_community.utilities import WikipediaAPIWrapper
 
-from langchain.tools import Tool
+from langchain_core.tools import Tool
+
 
 from datetime import datetime
 from typing import Optional
@@ -76,5 +77,6 @@ def get_tools():
     )
 
     return [search_tool, wiki_tool, save_tool]
+
 
 
