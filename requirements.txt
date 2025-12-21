@@ -9,11 +9,9 @@ duckduckgo-search
 tqdm
 streamlit
 ddgs
-langchain<0.1.0
-langchain-google-genai
-langchain<0.1.0
-langchain-google-genai
 pydantic
+langchain>=0.2.0
+langchain-openai>=0.1.0  
 
 
 
