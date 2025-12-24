@@ -1,16 +1,14 @@
 wikipedia
-langchain-community==0.2.16
-langchain-google-genai
+langchain-community==0.3.0
+langchain-google-genai==2.0.0
 google-generativeai
 python-dotenv
 duckduckgo-search
 tqdm
 streamlit
 pydantic>=2.0,<3.0
-langchain==0.2.16
-langchain-core==0.2.38
-
-
+langchain==0.3.0
+langchain-core==0.3.0
 
 
 
