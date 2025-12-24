@@ -1,34 +1,25 @@
 from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
 from langchain_community.utilities import WikipediaAPIWrapper
-
-from langchain_core.tools import Tool
-
-
 from datetime import datetime
-from typing import Optional
 import os
 import logging
+import shutil
 
 logging.basicConfig(level=logging.INFO)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-import os
-from datetime import datetime
-import shutil
-
 def save_to_txt(data, filename: str = "research_output.txt") -> str:
     filepath = os.path.join(RESULTS_DIR, filename)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Save if there is an old file
+    
+    # Save backup if there is an old file
     if os.path.exists(filepath):
         backup_name = f"research_output_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         backup_path = os.path.join(RESULTS_DIR, backup_name)
         shutil.copy2(filepath, backup_path)
-
+    
     # Prepare the file content
     try:
         formatted_text = (
@@ -42,41 +33,30 @@ def save_to_txt(data, filename: str = "research_output.txt") -> str:
         )
     except AttributeError:
         formatted_text = f"--- Research Output ---\nTimestamp: {timestamp}\n\n{str(data)}\n\n"
-
+    
     # Write the new content to the file
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(formatted_text)
-        return f"✅ Data successfully saved! "
+        return f"✅ Data successfully saved!"
     except Exception as e:
         return f"❌ Failed to save data: {e}"
 
-
-def save_to_txt_wrapper(data: str) -> str:
-    return save_to_txt(data, "research_output.txt")
-
 def get_tools():
-    search = DuckDuckGoSearchRun()
-    search_tool = Tool(
-        name="search",
-        func=search.run,
-        description="Search the web for up-to-date information using DuckDuckGo.",
+    """Return a list of tools compatible with create_tool_calling_agent"""
+    
+    # DuckDuckGo search tool - use directly without Tool wrapper
+    search_tool = DuckDuckGoSearchRun(
+        name="web_search",
+        description="Search the web for up-to-date information using DuckDuckGo. Use this for current events, news, and general web searches."
     )
-
-    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
-    wiki_tool = Tool(
+    
+    # Wikipedia tool - use directly without Tool wrapper
+    api_wrapper = WikipediaAPIWrapper(top_k_results=2, doc_content_chars_max=500)
+    wiki_tool = WikipediaQueryRun(
+        api_wrapper=api_wrapper,
         name="wikipedia",
-        func=WikipediaQueryRun(api_wrapper=api_wrapper).run,
-        description="Search concise summaries from Wikipedia.",
+        description="Search Wikipedia for encyclopedic information. Use this for historical facts, biographies, and general knowledge."
     )
-
-    save_tool = Tool(
-        name="save_text_to_file",
-        func=save_to_txt_wrapper,
-        description="Saves research data to a timestamped text file.",
-    )
-
-    return [search_tool, wiki_tool, save_tool]
-
-
-
+    
+    return [search_tool, wiki_tool]
