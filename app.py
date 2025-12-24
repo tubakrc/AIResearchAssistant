@@ -5,12 +5,11 @@ from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents.react.prompt import REACT_PROMPT
 
 import logging
 import os
 import warnings
-import json
 
 warnings.filterwarnings("ignore")
 
@@ -23,7 +22,6 @@ page_bg = """
 </style>
 """
 st.markdown(page_bg, unsafe_allow_html=True)
-
 st.set_page_config(page_title="AI Research Assistant", layout="centered")
 
 # ---------------- Setup ----------------
@@ -50,44 +48,15 @@ if not tools:
     st.error("No tools loaded")
     st.stop()
 
-tool_descriptions = "\n".join(
-    f"{t.name}: {t.description}" for t in tools
-)
-tool_names = ", ".join(t.name for t in tools)
-
 # ---------------- LLM ----------------
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash-exp",
-    temperature=0.5
+    temperature=0.5,
 )
 
 # ---------------- Prompt (CRITICAL FIX) ----------------
-from langchain_core.prompts import ChatPromptTemplate
-
-template = """Answer the following question as best you can.
-
-You have access to the following tools:
-{tools}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: reasoning
-Action: the action to take, should be one of [{tool_names}]
-Action Input: input to the action
-Observation: result of the action
-... (repeat as needed)
-Thought: I now know the final answer
-Final Answer: Return your response in this JSON format:
-{format_instructions}
-
-Begin!
-
-Question: {input}
-{agent_scratchpad}
-"""
-
-prompt = ChatPromptTemplate.from_template(template).partial(
+# REACT_PROMPT is the ONLY prompt guaranteed to work in LC 0.3.1
+prompt = REACT_PROMPT.partial(
     format_instructions=parser.get_format_instructions()
 )
 
@@ -140,15 +109,17 @@ if st.button("Run Agent"):
                     or ""
                 )
 
-                # strip markdown + guard JSON
                 cleaned = (
                     raw_output.replace("```json", "")
                     .replace("```", "")
                     .strip()
                 )
-                cleaned = cleaned[
-                    cleaned.find("{") : cleaned.rfind("}") + 1
-                ]
+
+                # Defensive JSON slicing (Gemini-safe)
+                if "{" in cleaned and "}" in cleaned:
+                    cleaned = cleaned[
+                        cleaned.find("{") : cleaned.rfind("}") + 1
+                    ]
 
                 structured = parser.parse(cleaned)
 
@@ -180,4 +151,3 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
-
