@@ -9,6 +9,10 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 import logging
 import os
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings('ignore', message="Key 'title' is not supported in schema")
 
 page_bg = """
 <style>
@@ -51,14 +55,15 @@ llm = ChatGoogleGenerativeAI(
 
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 
+# Fixed prompt - removed chat_history placeholder which was causing the issue
 prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
             """You are a research assistant that helps generate comprehensive research summaries.
-            
+
 Use the available tools to gather information:
-- Use 'web_search' for current events, news, and general web information
+- Use 'web_search' or 'duckduckgo_search' for current events, news, and general web information
 - Use 'wikipedia' for encyclopedic and historical information
 
 After gathering information, provide your response in this JSON format:
@@ -71,8 +76,7 @@ Make sure to:
 4. List which tools you used
 """,
         ),
-        ("placeholder", "{chat_history}"),
-        ("human", "{query}"),
+        ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
     ]
 ).partial(format_instructions=parser.get_format_instructions())
@@ -102,7 +106,8 @@ st.title("📚 AI Research Assistant")
 with st.sidebar:
     st.subheader("🛠️ Available Tools")
     for tool in tools:
-        st.write(f"✅ {tool.name}")
+        tool_name = tool.name if hasattr(tool, 'name') else str(type(tool).__name__)
+        st.write(f"✅ {tool_name}")
 
 query = st.text_input("🔍 What would you like to research?", placeholder="e.g. Effects of AI on Education")
 
@@ -112,8 +117,8 @@ if st.button("Run Agent"):
     else:
         with st.spinner("Researching... 🧠🧠🧠"):
             try:
-                # Invoke agent
-                raw_response = agent_executor.invoke({"query": query, "chat_history": []})
+                # Invoke agent - use 'input' instead of 'query'
+                raw_response = agent_executor.invoke({"input": query})
                 raw_output = raw_response.get("output", "")
                 
                 # Clean and parse output
@@ -165,6 +170,6 @@ if st.button("Run Agent"):
                 
                 # Show raw output for debugging
                 with st.expander("🔍 Debug Info"):
-                    st.write("Raw response:", raw_response)
+                    st.write("Raw response:", raw_response if 'raw_response' in locals() else "No response")
                     if 'raw_output' in locals():
                         st.write("Raw output:", raw_output)
