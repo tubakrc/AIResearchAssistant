@@ -4,16 +4,9 @@ from tools import get_tools, save_to_txt
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.prompts import PromptTemplate
-
-# from langchain.agents import AgentExecutor
-# from langchain.agents.react.agent import create_react_agent
-# from langchain_core.prompts import PromptTemplate
-# from langchain.agents.agent import AgentExecutor
-
-
-
+from langchain.agents import create_react_agent
+from langchain.agents.agent import AgentExecutor
+from langchain_core.prompts import PromptTemplate
 
 import logging
 import os
@@ -49,6 +42,7 @@ class ResearchResponse(BaseModel):
     tools_used: list[str]
 
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
+format_instructions = parser.get_format_instructions()
 
 # ---------------- Tools ----------------
 tools = get_tools()
@@ -62,29 +56,39 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.5,
 )
 
-# ---------------- ReAct Prompt (LangChain 0.3.1 SAFE) ----------------
-REACT_TEMPLATE = """Answer the following questions as best you can. You have access to the following tools:
+# ---------------- ReAct Prompt (JSON ENFORCED) ----------------
+REACT_TEMPLATE = f"""
+Answer the following question as best you can. You have access to the following tools:
 
-{tools}
+{{tools}}
 
 Use the following format:
 
 Question: the input question you must answer
-Thought: you should think about what to do
-Action: the action to take, should be one of [{tool_names}]
+Thought: think step by step
+Action: the action to take, should be one of [{{tool_names}}]
 Action Input: the input to the action
 Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
+... (this can repeat)
 Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Final Answer: MUST be valid JSON only
+
+IMPORTANT:
+Your Final Answer MUST strictly follow this JSON schema:
+{format_instructions}
+
+Do NOT include markdown, explanations, or text outside JSON.
 
 Begin!
 
-Question: {input}
-{agent_scratchpad}
+Question: {{input}}
+{{agent_scratchpad}}
 """
 
-prompt = PromptTemplate.from_template(REACT_TEMPLATE)
+prompt = PromptTemplate(
+    template=REACT_TEMPLATE,
+    input_variables=["input", "agent_scratchpad", "tools", "tool_names"],
+)
 
 # ---------------- Agent ----------------
 try:
@@ -99,7 +103,7 @@ try:
         tools=tools,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=10,
+        max_iterations=8,
     )
 
 except Exception as e:
@@ -141,13 +145,18 @@ if st.button("Run Agent"):
                     .strip()
                 )
 
-                if "{" in cleaned and "}" in cleaned:
-                    cleaned = cleaned[
-                        cleaned.find("{") : cleaned.rfind("}") + 1
-                    ]
+                # -------- SAFE PARSING --------
+                try:
+                    structured = parser.parse(cleaned)
+                except Exception:
+                    structured = ResearchResponse(
+                        topic=query,
+                        summary=raw_output,
+                        sources=[],
+                        tools_used=[t.name for t in tools],
+                    )
 
-                structured = parser.parse(cleaned)
-
+                # -------- UI OUTPUT --------
                 st.subheader("Topic")
                 st.write(structured.topic)
 
@@ -176,8 +185,3 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
-
-
-
-
-
