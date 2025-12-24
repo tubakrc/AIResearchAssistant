@@ -5,14 +5,14 @@ from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.prompts import PromptTemplate
 
 import logging
 import os
 import warnings
 
-# Suppress warnings
-warnings.filterwarnings('ignore', message="Key 'title' is not supported in schema")
+warnings.filterwarnings('ignore')
 
 page_bg = """
 <style>
@@ -37,15 +37,13 @@ class ResearchResponse(BaseModel):
     sources: list[str]
     tools_used: list[str]
 
-# Initialize page config first
 st.set_page_config(page_title="AI Research Assistant", layout="centered")
 
 # Get tools
 tools = get_tools()
 
-# Verify tools loaded
 if not tools:
-    st.error("⚠️ No tools loaded! Check your tools.py file.")
+    st.error("⚠️ No tools loaded!")
     st.stop()
 
 llm = ChatGoogleGenerativeAI(
@@ -55,45 +53,40 @@ llm = ChatGoogleGenerativeAI(
 
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 
-# Fixed prompt - removed chat_history placeholder which was causing the issue
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """You are a research assistant that helps generate comprehensive research summaries.
+# Use ReAct agent instead of tool_calling_agent
+template = '''Answer the following question as best you can. You have access to the following tools:
 
-Use the available tools to gather information:
-- Use 'web_search' or 'duckduckgo_search' for current events, news, and general web information
-- Use 'wikipedia' for encyclopedic and historical information
+{tools}
 
-After gathering information, provide your response in this JSON format:
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: Return your response in this JSON format:
 {format_instructions}
 
-Make sure to:
-1. Provide a clear, descriptive topic
-2. Write a comprehensive summary (3-5 paragraphs)
-3. List all sources you used (URLs or Wikipedia pages)
-4. List which tools you used
-""",
-        ),
-        ("human", "{input}"),
-        ("placeholder", "{agent_scratchpad}"),
-    ]
-).partial(format_instructions=parser.get_format_instructions())
+Begin!
+
+Question: {input}
+Thought: {agent_scratchpad}'''
+
+prompt = PromptTemplate.from_template(template).partial(
+    format_instructions=parser.get_format_instructions()
+)
 
 try:
-    agent = create_tool_calling_agent(
-        llm=llm,
-        prompt=prompt,
-        tools=tools,
-    )
-
+    agent = create_react_agent(llm, tools, prompt)
     agent_executor = AgentExecutor(
-        agent=agent, 
-        tools=tools, 
+        agent=agent,
+        tools=tools,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=5
+        max_iterations=10
     )
 except Exception as e:
     st.error(f"❌ Failed to create agent: {str(e)}")
@@ -102,7 +95,6 @@ except Exception as e:
 
 st.title("📚 AI Research Assistant")
 
-# Show loaded tools in sidebar
 with st.sidebar:
     st.subheader("🛠️ Available Tools")
     for tool in tools:
@@ -117,11 +109,9 @@ if st.button("Run Agent"):
     else:
         with st.spinner("Researching... 🧠🧠🧠"):
             try:
-                # Invoke agent - use 'input' instead of 'query'
                 raw_response = agent_executor.invoke({"input": query})
                 raw_output = raw_response.get("output", "")
                 
-                # Clean and parse output
                 cleaned_output = (
                     raw_output.replace("```json", "")
                     .replace("```", "")
@@ -130,7 +120,6 @@ if st.button("Run Agent"):
                 
                 structured_response = parser.parse(cleaned_output)
 
-                # Display results
                 st.subheader("📝 Topic")
                 st.markdown(f"**{structured_response.topic}**")
 
@@ -147,11 +136,9 @@ if st.button("Run Agent"):
                 st.subheader("🛠️ Tools Used")
                 st.markdown(", ".join(structured_response.tools_used))
 
-                # Save to file
                 save_message = save_to_txt(structured_response)
                 st.success(save_message)
 
-                # Download button
                 if os.path.exists(FILEPATH):
                     with open(FILEPATH, "rb") as f:
                         file_bytes = f.read()
@@ -161,15 +148,13 @@ if st.button("Run Agent"):
                         file_name=FILENAME,
                         mime="text/plain"
                     )
-                else:
-                    st.info("ℹ️ File not found yet or not saved.")
 
             except Exception as e:
                 st.error("❌ Failed to complete research.")
                 st.exception(e)
                 
-                # Show raw output for debugging
                 with st.expander("🔍 Debug Info"):
-                    st.write("Raw response:", raw_response if 'raw_response' in locals() else "No response")
+                    if 'raw_response' in locals():
+                        st.write("Raw response:", raw_response)
                     if 'raw_output' in locals():
                         st.write("Raw output:", raw_output)
