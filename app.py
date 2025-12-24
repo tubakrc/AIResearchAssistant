@@ -62,18 +62,21 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # ---------------- Prompt (CRITICAL FIX) ----------------
-template = """Answer the following question as best you can. You have access to the following tools:
+from langchain_core.prompts import ChatPromptTemplate
 
+template = """Answer the following question as best you can.
+
+You have access to the following tools:
 {tools}
 
 Use the following format:
 
 Question: the input question you must answer
-Thought: you should always think about what to do
+Thought: reasoning
 Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
+Action Input: input to the action
+Observation: result of the action
+... (repeat as needed)
 Thought: I now know the final answer
 Final Answer: Return your response in this JSON format:
 {format_instructions}
@@ -85,9 +88,7 @@ Question: {input}
 """
 
 prompt = ChatPromptTemplate.from_template(template).partial(
-    tools=tool_descriptions,
-    tool_names=tool_names,
-    format_instructions=parser.get_format_instructions(),
+    format_instructions=parser.get_format_instructions()
 )
 
 # ---------------- Agent ----------------
@@ -179,3 +180,4 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
+
