@@ -112,7 +112,7 @@ try:
         tools=tools,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=8,
+        max_iterations=15,
     )
 
 except Exception as e:
@@ -194,4 +194,5 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
+
 
