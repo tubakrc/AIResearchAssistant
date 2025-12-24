@@ -4,8 +4,12 @@ from tools import get_tools, save_to_txt
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import AgentExecutor, create_react_agent
+# from langchain.agents import AgentExecutor, create_react_agent
 from langchain.prompts import PromptTemplate
+
+from langchain.agents import AgentExecutor
+from langchain.agents.react.agent import create_react_agent
+
 
 import logging
 import os
@@ -168,3 +172,4 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
+
