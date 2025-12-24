@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain.agents.react.prompt import REACT_PROMPT
+from langchain.prompts import PromptTemplate
 
 import logging
 import os
@@ -54,11 +54,29 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.5,
 )
 
-# ---------------- Prompt (CRITICAL FIX) ----------------
-# REACT_PROMPT is the ONLY prompt guaranteed to work in LC 0.3.1
-prompt = REACT_PROMPT.partial(
-    format_instructions=parser.get_format_instructions()
-)
+# ---------------- ReAct Prompt (LangChain 0.3.1 SAFE) ----------------
+REACT_TEMPLATE = """Answer the following questions as best you can. You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+{agent_scratchpad}
+"""
+
+prompt = PromptTemplate.from_template(REACT_TEMPLATE)
 
 # ---------------- Agent ----------------
 try:
@@ -115,7 +133,6 @@ if st.button("Run Agent"):
                     .strip()
                 )
 
-                # Defensive JSON slicing (Gemini-safe)
                 if "{" in cleaned and "}" in cleaned:
                     cleaned = cleaned[
                         cleaned.find("{") : cleaned.rfind("}") + 1
