@@ -4,12 +4,7 @@ from tools import get_tools, save_to_txt
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-
 from langchain_core.output_parsers import PydanticOutputParser
-
-from langchain_core.tools import Tool
-
-# Fixed imports - use these instead
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 
 import logging
@@ -38,10 +33,19 @@ class ResearchResponse(BaseModel):
     sources: list[str]
     tools_used: list[str]
 
+# Initialize page config first
+st.set_page_config(page_title="AI Research Assistant", layout="centered")
+
+# Get tools
 tools = get_tools()
 
+# Verify tools loaded
+if not tools:
+    st.error("⚠️ No tools loaded! Check your tools.py file.")
+    st.stop()
+
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-pro",
+    model="gemini-2.0-flash-exp",
     temperature=0.5
 )
 
@@ -51,11 +55,21 @@ prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            """
-            You are a research assistant that will help generate a research summary.
-            Use tools when necessary and return your response in this structured format:
-            {format_instructions}
-            """,
+            """You are a research assistant that helps generate comprehensive research summaries.
+            
+Use the available tools to gather information:
+- Use 'web_search' for current events, news, and general web information
+- Use 'wikipedia' for encyclopedic and historical information
+
+After gathering information, provide your response in this JSON format:
+{format_instructions}
+
+Make sure to:
+1. Provide a clear, descriptive topic
+2. Write a comprehensive summary (3-5 paragraphs)
+3. List all sources you used (URLs or Wikipedia pages)
+4. List which tools you used
+""",
         ),
         ("placeholder", "{chat_history}"),
         ("human", "{query}"),
@@ -63,16 +77,32 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(format_instructions=parser.get_format_instructions())
 
-agent = create_tool_calling_agent(
-    llm=llm,
-    prompt=prompt,
-    tools=tools,
-)
+try:
+    agent = create_tool_calling_agent(
+        llm=llm,
+        prompt=prompt,
+        tools=tools,
+    )
 
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    agent_executor = AgentExecutor(
+        agent=agent, 
+        tools=tools, 
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=5
+    )
+except Exception as e:
+    st.error(f"❌ Failed to create agent: {str(e)}")
+    st.exception(e)
+    st.stop()
 
-st.set_page_config(page_title="AI Research Assistant", layout="centered")
 st.title("📚 AI Research Assistant")
+
+# Show loaded tools in sidebar
+with st.sidebar:
+    st.subheader("🛠️ Available Tools")
+    for tool in tools:
+        st.write(f"✅ {tool.name}")
 
 query = st.text_input("🔍 What would you like to research?", placeholder="e.g. Effects of AI on Education")
 
@@ -80,17 +110,22 @@ if st.button("Run Agent"):
     if not query:
         st.warning("Please enter a query before running.")
     else:
-        with st.spinner("Thinking... 🧠🧠🧠"):
+        with st.spinner("Researching... 🧠🧠🧠"):
             try:
-                raw_response = agent_executor.invoke({"query": query})
+                # Invoke agent
+                raw_response = agent_executor.invoke({"query": query, "chat_history": []})
                 raw_output = raw_response.get("output", "")
+                
+                # Clean and parse output
                 cleaned_output = (
                     raw_output.replace("```json", "")
                     .replace("```", "")
                     .strip()
                 )
+                
                 structured_response = parser.parse(cleaned_output)
 
+                # Display results
                 st.subheader("📝 Topic")
                 st.markdown(f"**{structured_response.topic}**")
 
@@ -107,11 +142,11 @@ if st.button("Run Agent"):
                 st.subheader("🛠️ Tools Used")
                 st.markdown(", ".join(structured_response.tools_used))
 
-                # Dosyayı kaydet (manuel)
+                # Save to file
                 save_message = save_to_txt(structured_response)
                 st.success(save_message)
 
-                # Dosya indirme butonu
+                # Download button
                 if os.path.exists(FILEPATH):
                     with open(FILEPATH, "rb") as f:
                         file_bytes = f.read()
@@ -125,31 +160,11 @@ if st.button("Run Agent"):
                     st.info("ℹ️ File not found yet or not saved.")
 
             except Exception as e:
-                st.error("❌ Failed to parse response.")
+                st.error("❌ Failed to complete research.")
                 st.exception(e)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                
+                # Show raw output for debugging
+                with st.expander("🔍 Debug Info"):
+                    st.write("Raw response:", raw_response)
+                    if 'raw_output' in locals():
+                        st.write("Raw output:", raw_output)
