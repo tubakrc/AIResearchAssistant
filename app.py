@@ -58,7 +58,7 @@ if not tools:
 
 # ---------------- LLM ----------------
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-pro",
     temperature=0.5,
 )
 
@@ -176,6 +176,7 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
+
 
 
 
