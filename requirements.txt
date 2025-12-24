@@ -1,19 +1,16 @@
-wikipedia
-langchain-community==0.3.1
-langchain-google-genai==2.0.0
-google-generativeai
-python-dotenv
-duckduckgo-search
-tqdm
 streamlit
+python-dotenv
 pydantic>=2.0,<3.0
-langchain==0.3.1
-langchain-core==0.3.6
 
+langchain>=0.3.8
+langchain-core>=0.3.20
+langchain-community>=0.3.8
 
+langchain-google-genai>=2.0.3
+google-generativeai
 
-
-
-
+duckduckgo-search
+wikipedia
+tqdm
 
 
