@@ -1,20 +1,14 @@
-
 wikipedia
-langchain-community
+langchain-community==0.2.16
 langchain-google-genai
 google-generativeai
 python-dotenv
 duckduckgo-search
 tqdm
 streamlit
-ddgs
-pydantic>=2.0
-
-langchain>=0.1.0
-langchain-core>=0.1.0
-langchain-google-genai  # for Gemini
-
-
+pydantic>=2.0,<3.0
+langchain==0.2.16
+langchain-core==0.2.38
 
 
 
