@@ -57,16 +57,16 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # ---------------- ReAct Prompt (JSON ENFORCED) ----------------
-REACT_TEMPLATE = f"""
+REACT_TEMPLATE = """
 Answer the following question as best you can. You have access to the following tools:
 
-{{tools}}
+{tools}
 
 Use the following format:
 
 Question: the input question you must answer
 Thought: think step by step
-Action: the action to take, should be one of [{{tool_names}}]
+Action: the action to take, should be one of [{tool_names}]
 Action Input: the input to the action
 Observation: the result of the action
 ... (this can repeat)
@@ -81,14 +81,23 @@ Do NOT include markdown, explanations, or text outside JSON.
 
 Begin!
 
-Question: {{input}}
-{{agent_scratchpad}}
+Question: {input}
+{agent_scratchpad}
 """
+
 
 prompt = PromptTemplate(
     template=REACT_TEMPLATE,
-    input_variables=["input", "agent_scratchpad", "tools", "tool_names"],
+    input_variables=[
+        "input",
+        "agent_scratchpad",
+        "tools",
+        "tool_names",
+    ],
+).partial(
+    format_instructions=parser.get_format_instructions()
 )
+
 
 # ---------------- Agent ----------------
 try:
@@ -185,3 +194,4 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
+
