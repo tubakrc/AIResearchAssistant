@@ -14,7 +14,17 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-# ---------------- UI ----------------
+# ---------------- BOOTSTRAP (run once) ----------------
+@st.cache_resource
+def bootstrap():
+    load_dotenv()
+    logging.basicConfig(level=logging.INFO)
+
+bootstrap()
+
+# ---------------- UI CONFIG ----------------
+st.set_page_config(page_title="AI Research Assistant", layout="centered")
+
 page_bg = """
 <style>
 [data-testid="stAppViewContainer"] {
@@ -23,18 +33,14 @@ page_bg = """
 </style>
 """
 st.markdown(page_bg, unsafe_allow_html=True)
-st.set_page_config(page_title="AI Research Assistant", layout="centered")
 
-# ---------------- Setup ----------------
-load_dotenv()
-logging.basicConfig(level=logging.INFO)
-
+# ---------------- PATHS ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 FILENAME = "research_output.txt"
 FILEPATH = os.path.join(RESULTS_DIR, FILENAME)
 
-# ---------------- Schema ----------------
+# ---------------- SCHEMA ----------------
 class ResearchResponse(BaseModel):
     topic: str
     summary: str
@@ -42,21 +48,18 @@ class ResearchResponse(BaseModel):
     tools_used: list[str]
 
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
-format_instructions = parser.get_format_instructions()
 
-# ---------------- Tools ----------------
-tools = get_tools()
+# ---------------- TOOLS (cached) ----------------
+@st.cache_resource
+def load_tools():
+    return get_tools()
+
+tools = load_tools()
 if not tools:
     st.error("No tools loaded")
     st.stop()
 
-# ---------------- LLM ----------------
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-pro",
-    temperature=0.5,
-)
-
-# ---------------- ReAct Prompt (JSON ENFORCED) ----------------
+# ---------------- PROMPT ----------------
 REACT_TEMPLATE = """
 Answer the following question as best you can. You have access to the following tools:
 
@@ -85,7 +88,6 @@ Question: {input}
 {agent_scratchpad}
 """
 
-
 prompt = PromptTemplate(
     template=REACT_TEMPLATE,
     input_variables=[
@@ -98,31 +100,34 @@ prompt = PromptTemplate(
     format_instructions=parser.get_format_instructions()
 )
 
+# ---------------- AGENT (cached) ----------------
+@st.cache_resource
+def init_agent():
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-pro",
+        temperature=0.5,
+    )
 
-# ---------------- Agent ----------------
-try:
     agent = create_react_agent(
         llm=llm,
         tools=tools,
         prompt=prompt,
     )
 
-    agent_executor = AgentExecutor(
+    return AgentExecutor(
         agent=agent,
         tools=tools,
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=15,
-        early_stopping_method="generate"
+        early_stopping_method="generate",
     )
 
-except Exception as e:
-    st.error("Failed to create agent")
-    st.exception(e)
-    st.stop()
+agent_executor = init_agent()
 
 # ---------------- UI ----------------
 st.title("📚 AI Research Assistant")
+st.caption("Ready. Agent initializes once per container.")
 
 with st.sidebar:
     st.subheader("Available Tools")
@@ -134,7 +139,7 @@ query = st.text_input(
     placeholder="e.g. Effects of AI on Education",
 )
 
-# ---------------- Run ----------------
+# ---------------- RUN ----------------
 if st.button("Run Agent"):
     if not query:
         st.warning("Enter a query")
@@ -155,7 +160,6 @@ if st.button("Run Agent"):
                     .strip()
                 )
 
-                # -------- SAFE PARSING --------
                 try:
                     structured = parser.parse(cleaned)
                 except Exception:
@@ -195,6 +199,3 @@ if st.button("Run Agent"):
             except Exception as e:
                 st.error("Agent execution failed")
                 st.exception(e)
-
-
-
