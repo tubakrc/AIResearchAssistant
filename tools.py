@@ -44,11 +44,11 @@ def save_to_txt(data, filename: str = "research_output.txt") -> str:
 class RobustDuckDuckGoSearch(DuckDuckGoSearchRun):
     """DuckDuckGo with retry logic to handle rate limiting."""
 
-    max_retries: int = Field(default=3)
-    retry_delay: float = Field(default=2.0)
-
     def _run(self, query: str) -> str:
-        for attempt in range(self.max_retries):
+        max_retries = 3
+        retry_delay = 2.0
+
+        for attempt in range(max_retries):
             try:
                 result = super()._run(query)
                 if result and result.strip():
@@ -56,8 +56,8 @@ class RobustDuckDuckGoSearch(DuckDuckGoSearchRun):
                 logger.warning(f"DDG returned empty result on attempt {attempt + 1}")
             except Exception as e:
                 logger.warning(f"DDG attempt {attempt + 1} failed: {e}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay * (attempt + 1))  # exponential backoff
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
         return "DuckDuckGo search temporarily unavailable. Wikipedia results will be used."
 
 
