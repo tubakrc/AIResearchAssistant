@@ -21,7 +21,7 @@ st.set_page_config(page_title="AI Research Assistant", layout="centered")
 st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
-    background-color: #ff4d6d;
+    background-color: #758bfd;
 }
 [data-testid="stSidebar"] {
     background: rgba(255, 255, 255, 0.5);
