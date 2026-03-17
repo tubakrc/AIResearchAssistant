@@ -20,7 +20,7 @@ class ResearchResponse(BaseModel):
 
 # Initialize Gemini LLM
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-pro",
+    model="gemini-2.5-flash",
     temperature=0.5
 )
 
