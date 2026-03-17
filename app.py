@@ -26,12 +26,17 @@ st.markdown("""
 [data-testid="stSidebar"] {
     background: rgba(255, 255, 255, 0.5);
 }
-[data-testid="stSidebarCollapsedControl"] {
-    background-color: #ff8600;
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"],
+section[data-testid="stSidebarCollapsedControl"],
+.st-emotion-cache-wgk7qv,
+button[kind="header"] {
+    background-color: #ff8600 !important;
     border-radius: 8px;
 }
-[data-testid="stSidebarCollapsedControl"]:hover {
-    background-color: #ff8600;
+[data-testid="stSidebarCollapsedControl"]:hover,
+[data-testid="collapsedControl"]:hover {
+    background-color: #e67a00 !important;
 }
 </style>
 """, unsafe_allow_html=True)
