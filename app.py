@@ -90,7 +90,7 @@ TOOL_DECLARATIONS = [
 # ---------------- AGENT RUNNER ----------------
 def run_research(query: str) -> ResearchResponse:
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",   # flash: hızlı + stabil tool calling
+        model_name="gemini-2.5-flash",   
         tools=[{"function_declarations": TOOL_DECLARATIONS}],
         system_instruction="""You are a research assistant.
 
