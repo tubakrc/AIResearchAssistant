@@ -75,7 +75,7 @@ TOOL_DECLARATIONS = [
 # ---------------- AGENT RUNNER ----------------
 def run_research(query: str) -> ResearchResponse:
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash-001",   # flash: hızlı + stabil tool calling
+        model_name="gemini-1.5-pro",   # flash: hızlı + stabil tool calling
         tools=[{"function_declarations": TOOL_DECLARATIONS}],
         system_instruction="""You are a research assistant. 
 Always use BOTH duckduckgo_search and wikipedia tools before answering.
