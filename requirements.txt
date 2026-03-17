@@ -1,21 +1,12 @@
-# Core LangChain — birbirine tam uyumlu set
-langchain==0.2.16
-langchain-core==0.2.38
+google-generativeai>=0.7.0
 langchain-community==0.2.16
-langchain-google-genai==1.0.10
+langchain-core==0.2.38
 
-# Google AI — langchain-google-genai 1.0.x ile uyumlu
-google-generativeai>=0.7.0,<0.8.0
-
-# Tools
 duckduckgo-search>=6.0.0
 wikipedia>=1.4.0
 
-# App
 streamlit>=1.40.0
 python-dotenv>=1.0.0
-
-# Data
 pydantic>=2.0,<3.0
 tqdm>=4.0.0
 
