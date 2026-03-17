@@ -16,6 +16,7 @@ An AI-powered research agent that automates web + Wikipedia search using tools, 
 📥 User can download the result as `.txt` directly from the UI   
 🌐 Clean Streamlit UI for easy interaction  
 📦 Modular code structure, easy to extend with new tools or agents
+
 🪿 DuckDuckGo retry logic — rate limit'te 3 trial + exponential backoff
 📞 Gemini native function calling — solved JSON parse error
 
