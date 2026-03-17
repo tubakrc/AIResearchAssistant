@@ -4,8 +4,8 @@ langchain-core==0.3.6
 langchain-community==0.3.1
 langchain-google-genai==2.0.0
 
-# Google AI
-google-generativeai>=0.8.0
+# Google AI — langchain-google-genai 2.0.0 ile uyumlu aralık
+google-generativeai>=0.7.0,<0.8.0
 
 # Tools
 duckduckgo-search>=6.0.0
@@ -18,5 +18,4 @@ python-dotenv>=1.0.0
 # Data
 pydantic>=2.0,<3.0
 tqdm>=4.0.0
-
 
