@@ -77,17 +77,27 @@ def run_research(query: str) -> ResearchResponse:
     model = genai.GenerativeModel(
         model_name="gemini-2.5-flash",   # flash: hızlı + stabil tool calling
         tools=[{"function_declarations": TOOL_DECLARATIONS}],
-        system_instruction="""You are a research assistant. 
-Always use BOTH duckduckgo_search and wikipedia tools before answering.
-After gathering information, return a JSON object with these exact fields:
+        system_instruction="""You are a research assistant.
+
+STEP 1: Use duckduckgo_search tool with the user's query.
+STEP 2: Use wikipedia tool with the user's query.
+STEP 3: Use duckduckgo_search again with a more specific query if needed.
+STEP 4: Synthesize ALL tool results into a detailed summary.
+
+Rules:
+- Your summary MUST include specific facts, methods, and details from the tool results.
+- Do NOT say tools were unavailable or results were not found if you received any output.
+- Minimum summary length: 300 words.
+- Always return a JSON object with these exact fields:
 {
   "topic": "the research topic",
-  "summary": "comprehensive summary of findings",
-  "sources": ["list of sources or search queries used"],
-  "tools_used": ["list of tool names used"]
+  "summary": "detailed summary using ALL gathered information",
+  "sources": ["list of sources or URLs found"],
+  "tools_used": ["duckduckgo_search", "wikipedia"]
 }
-Return ONLY the JSON, no markdown, no extra text."""
-    )
+Return ONLY the JSON. No markdown, no extra text."""
+
+        
 
     messages = [{"role": "user", "parts": [query]}]
     tools_used = []
