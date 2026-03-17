@@ -4,17 +4,15 @@ from tools import get_tools, save_to_txt
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import create_react_agent
-from langchain.agents.agent import AgentExecutor
-from langchain_core.prompts import PromptTemplate
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate
 
-import logging
-import os
-import warnings
+import logging, os, warnings
 
 warnings.filterwarnings("ignore")
 
-# ---------------- BOOTSTRAP (run once) ----------------
+
+# ---------------- BOOTSTRAP ----------------
 @st.cache_resource
 def bootstrap():
     load_dotenv()
@@ -22,23 +20,25 @@ def bootstrap():
 
 bootstrap()
 
+
 # ---------------- UI CONFIG ----------------
 st.set_page_config(page_title="AI Research Assistant", layout="centered")
 
-page_bg = """
+st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(to bottom right, #4facfe, #8e44ad);
 }
 </style>
-"""
-st.markdown(page_bg, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
+
 
 # ---------------- PATHS ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 FILENAME = "research_output.txt"
 FILEPATH = os.path.join(RESULTS_DIR, FILENAME)
+
 
 # ---------------- SCHEMA ----------------
 class ResearchResponse(BaseModel):
@@ -47,87 +47,51 @@ class ResearchResponse(BaseModel):
     sources: list[str]
     tools_used: list[str]
 
+
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 
-# ---------------- TOOLS (cached) ----------------
-@st.cache_resource
-def load_tools():
-    return get_tools()
 
-tools = load_tools()
-if not tools:
-    st.error("No tools loaded")
-    st.stop()
-
-# ---------------- PROMPT ----------------
-REACT_TEMPLATE = """
-Answer the following question as best you can. You have access to the following tools:
-
-{tools}
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: think step by step
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this can repeat)
-Thought: I now know the final answer
-Final Answer: MUST be valid JSON only
-
-IMPORTANT:
-Your Final Answer MUST strictly follow this JSON schema:
-{format_instructions}
-
-Do NOT include markdown, explanations, or text outside JSON.
-
-Begin!
-
-Question: {input}
-{agent_scratchpad}
-"""
-
-prompt = PromptTemplate(
-    template=REACT_TEMPLATE,
-    input_variables=[
-        "input",
-        "agent_scratchpad",
-        "tools",
-        "tool_names",
-    ],
-).partial(
-    format_instructions=parser.get_format_instructions()
-)
-
-# ---------------- AGENT (cached) ----------------
+# ---------------- AGENT (tools + executor birlikte cache'lendi) ----------------
 @st.cache_resource
 def init_agent():
+    tools = get_tools()
+
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-pro",
         temperature=0.5,
     )
 
-    agent = create_react_agent(
-        llm=llm,
-        tools=tools,
-        prompt=prompt,
-    )
+    # tool_calling_agent: ReAct'tan çok daha stabil, JSON parse sorunu yok
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a research assistant that generates structured research summaries.
+Use the available tools to search for information, then return your findings.
+Always use both DuckDuckGo and Wikipedia tools when possible.
+{format_instructions}"""),
+        ("placeholder", "{chat_history}"),
+        ("human", "{query}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ]).partial(format_instructions=parser.get_format_instructions())
 
-    return AgentExecutor(
+    agent = create_tool_calling_agent(llm=llm, tools=tools, prompt=prompt)
+
+    executor = AgentExecutor(
         agent=agent,
         tools=tools,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=15,
-        early_stopping_method="generate",
+        max_iterations=10,  # 15→10: gereksiz döngüleri keser
+        return_intermediate_steps=False,
     )
 
-agent_executor = init_agent()
+    return executor, tools
+
+
+agent_executor, tools = init_agent()
+
 
 # ---------------- UI ----------------
 st.title("📚 AI Research Assistant")
-st.caption("Ready. Agent initializes once per container.")
+st.caption("Agent initializes once per session.")
 
 with st.sidebar:
     st.subheader("Available Tools")
@@ -139,20 +103,16 @@ query = st.text_input(
     placeholder="e.g. Effects of AI on Education",
 )
 
-# ---------------- RUN ----------------
-if st.button("Run Agent"):
-    if not query:
-        st.warning("Enter a query")
-    else:
-        with st.spinner("Researching..."):
-            try:
-                response = agent_executor.invoke({"input": query})
 
-                raw_output = (
-                    response.get("output")
-                    or response.get("final_answer")
-                    or ""
-                )
+# ---------------- RUN ----------------
+if st.button("🔍 Run Agent"):
+    if not query.strip():
+        st.warning("Please enter a research topic.")
+    else:
+        with st.spinner("🔬 Researching... this may take 20–40 seconds."):
+            try:
+                response = agent_executor.invoke({"query": query})
+                raw_output = response.get("output", "")
 
                 cleaned = (
                     raw_output.replace("```json", "")
@@ -170,18 +130,19 @@ if st.button("Run Agent"):
                         tools_used=[t.name for t in tools],
                     )
 
-                # -------- UI OUTPUT --------
-                st.subheader("Topic")
+                # -------- DISPLAY --------
+                st.subheader("📌 Topic")
                 st.write(structured.topic)
 
-                st.subheader("Summary")
+                st.subheader("📝 Summary")
                 st.markdown(structured.summary.replace("\n", "  \n"))
 
-                st.subheader("Sources")
-                for s in structured.sources:
-                    st.markdown(f"- {s}")
+                if structured.sources:
+                    st.subheader("🔗 Sources")
+                    for s in structured.sources:
+                        st.markdown(f"- {s}")
 
-                st.subheader("Tools Used")
+                st.subheader("🛠️ Tools Used")
                 st.write(", ".join(structured.tools_used))
 
                 msg = save_to_txt(structured)
@@ -190,12 +151,12 @@ if st.button("Run Agent"):
                 if os.path.exists(FILEPATH):
                     with open(FILEPATH, "rb") as f:
                         st.download_button(
-                            "Download Result",
+                            "📥 Download Result",
                             f.read(),
                             file_name=FILENAME,
                             mime="text/plain",
                         )
 
             except Exception as e:
-                st.error("Agent execution failed")
+                st.error("❌ Agent execution failed.")
                 st.exception(e)
