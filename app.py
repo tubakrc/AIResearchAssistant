@@ -2,28 +2,22 @@ import streamlit as st
 from dotenv import load_dotenv
 from tools import get_tools, save_to_txt
 from pydantic import BaseModel
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate
-
-import logging, os, warnings
+import google.generativeai as genai
+import json, logging, os, warnings
 
 warnings.filterwarnings("ignore")
-
 
 # ---------------- BOOTSTRAP ----------------
 @st.cache_resource
 def bootstrap():
     load_dotenv()
     logging.basicConfig(level=logging.INFO)
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 bootstrap()
 
-
 # ---------------- UI CONFIG ----------------
 st.set_page_config(page_title="AI Research Assistant", layout="centered")
-
 st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
@@ -32,13 +26,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 # ---------------- PATHS ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 FILENAME = "research_output.txt"
 FILEPATH = os.path.join(RESULTS_DIR, FILENAME)
-
 
 # ---------------- SCHEMA ----------------
 class ResearchResponse(BaseModel):
@@ -47,62 +39,142 @@ class ResearchResponse(BaseModel):
     sources: list[str]
     tools_used: list[str]
 
-
-parser = PydanticOutputParser(pydantic_object=ResearchResponse)
-
-
-# ---------------- AGENT (tools + executor birlikte cache'lendi) ----------------
+# ---------------- TOOL REGISTRY ----------------
 @st.cache_resource
-def init_agent():
-    tools = get_tools()
+def load_tools():
+    return {t.name: t for t in get_tools()}
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",
-        temperature=0.5,
+tool_registry = load_tools()
+
+# Gemini function declarations
+TOOL_DECLARATIONS = [
+    {
+        "name": "duckduckgo_search",
+        "description": "Search the web using DuckDuckGo. Use for recent news, general facts, and current information.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"}
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "wikipedia",
+        "description": "Search Wikipedia for encyclopedic information about a topic.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Topic to look up on Wikipedia"}
+            },
+            "required": ["query"]
+        }
+    }
+]
+
+# ---------------- AGENT RUNNER ----------------
+def run_research(query: str) -> ResearchResponse:
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",   # flash: hızlı + stabil tool calling
+        tools=[{"function_declarations": TOOL_DECLARATIONS}],
+        system_instruction="""You are a research assistant. 
+Always use BOTH duckduckgo_search and wikipedia tools before answering.
+After gathering information, return a JSON object with these exact fields:
+{
+  "topic": "the research topic",
+  "summary": "comprehensive summary of findings",
+  "sources": ["list of sources or search queries used"],
+  "tools_used": ["list of tool names used"]
+}
+Return ONLY the JSON, no markdown, no extra text."""
     )
 
-    # tool_calling_agent: ReAct'tan çok daha stabil, JSON parse sorunu yok
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a research assistant that generates structured research summaries.
-Use the available tools to search for information, then return your findings.
-Always use both DuckDuckGo and Wikipedia tools when possible.
-{format_instructions}"""),
-        ("placeholder", "{chat_history}"),
-        ("human", "{query}"),
-        ("placeholder", "{agent_scratchpad}"),
-    ]).partial(format_instructions=parser.get_format_instructions())
+    messages = [{"role": "user", "parts": [query]}]
+    tools_used = []
+    sources = []
 
-    agent = create_tool_calling_agent(llm=llm, tools=tools, prompt=prompt)
+    # Agentic loop — max 6 tur
+    for _ in range(6):
+        response = model.generate_content(messages)
+        candidate = response.candidates[0]
+        content = candidate.content
 
-    executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=10,  # 15→10: gereksiz döngüleri keser
-        return_intermediate_steps=False,
-    )
+        # Tool call var mı?
+        function_calls = [
+            p for p in content.parts
+            if hasattr(p, "function_call") and p.function_call.name
+        ]
 
-    return executor, tools
+        if not function_calls:
+            # Final cevap
+            text = "".join(
+                p.text for p in content.parts if hasattr(p, "text")
+            ).strip()
+            break
 
+        # Tool'ları çalıştır
+        messages.append({"role": "model", "parts": content.parts})
+        tool_responses = []
 
-agent_executor, tools = init_agent()
+        for part in function_calls:
+            fn = part.function_call
+            tool_name = fn.name
+            args = dict(fn.args)
+            tool_query = args.get("query", "")
 
+            tools_used.append(tool_name)
+            sources.append(tool_query)
+
+            # LangChain tool'unu çalıştır
+            lc_tool = tool_registry.get(tool_name)
+            if lc_tool:
+                try:
+                    result = lc_tool.run(tool_query)
+                except Exception as e:
+                    result = f"Tool error: {e}"
+            else:
+                result = f"Tool '{tool_name}' not found."
+
+            tool_responses.append(
+                genai.protos.Part(
+                    function_response=genai.protos.FunctionResponse(
+                        name=tool_name,
+                        response={"result": result}
+                    )
+                )
+            )
+
+        messages.append({"role": "user", "parts": tool_responses})
+
+    else:
+        text = ""
+
+    # JSON parse
+    cleaned = text.replace("```json", "").replace("```", "").strip()
+    try:
+        data = json.loads(cleaned)
+        return ResearchResponse(**data)
+    except Exception:
+        return ResearchResponse(
+            topic=query,
+            summary=text or "Could not parse response.",
+            sources=sources,
+            tools_used=list(set(tools_used)) or list(tool_registry.keys())
+        )
 
 # ---------------- UI ----------------
 st.title("📚 AI Research Assistant")
-st.caption("Agent initializes once per session.")
+st.caption("Powered by Gemini + DuckDuckGo + Wikipedia")
 
 with st.sidebar:
     st.subheader("Available Tools")
-    for t in tools:
-        st.write(f"• {t.name}")
+    for name in tool_registry:
+        st.write(f"• {name}")
 
 query = st.text_input(
     "What would you like to research?",
     placeholder="e.g. Effects of AI on Education",
 )
-
 
 # ---------------- RUN ----------------
 if st.button("🔍 Run Agent"):
@@ -111,26 +183,8 @@ if st.button("🔍 Run Agent"):
     else:
         with st.spinner("🔬 Researching... this may take 20–40 seconds."):
             try:
-                response = agent_executor.invoke({"query": query})
-                raw_output = response.get("output", "")
+                structured = run_research(query)
 
-                cleaned = (
-                    raw_output.replace("```json", "")
-                    .replace("```", "")
-                    .strip()
-                )
-
-                try:
-                    structured = parser.parse(cleaned)
-                except Exception:
-                    structured = ResearchResponse(
-                        topic=query,
-                        summary=raw_output,
-                        sources=[],
-                        tools_used=[t.name for t in tools],
-                    )
-
-                # -------- DISPLAY --------
                 st.subheader("📌 Topic")
                 st.write(structured.topic)
 
