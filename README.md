@@ -11,11 +11,13 @@ An AI-powered research agent that automates web + Wikipedia search using tools, 
 ## 🚀 Features
 
 🔍 Searches **DuckDuckGo** and **Wikipedia** via LangChain tools  
-🧑‍🔬 Uses **Gemini-2.5-pro** to generate structured research summaries  
+🧑‍🔬 Uses **Gemini-2.5-flash** to generate structured research summaries  
 📄 Exports results to a **timestamped text file**  
 📥 User can download the result as `.txt` directly from the UI   
 🌐 Clean Streamlit UI for easy interaction  
 📦 Modular code structure, easy to extend with new tools or agents
+🪿 DuckDuckGo retry logic — rate limit'te 3 trial + exponential backoff
+📞 Gemini native function calling — solved JSON parse error
 
 ---
 
@@ -27,9 +29,9 @@ An AI-powered research agent that automates web + Wikipedia search using tools, 
 
 ## 🛠️ Tech Stack
 
-- **LLM**: Gemini-2.5-pro via `langchain-google-genai`
+- **LLM**: Gemini-2.5-flash via `google-generativeai native`
 - **Search Tools**: DuckDuckGo + Wikipedia (`langchain_community`)
-- **Agent Framework**: LangChain `ToolCallingAgent` & `AgentExecutor`
+- **Agent Framework**: Gemini native function calling loop
 - **Frontend**: Streamlit
 - **Output Format**: `Pydantic` for structured data
 
