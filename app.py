@@ -95,7 +95,7 @@ Rules:
   "sources": ["list of sources or URLs found"],
   "tools_used": ["duckduckgo_search", "wikipedia"]
 }
-Return ONLY the JSON. No markdown, no extra text."""
+Return ONLY the JSON. No markdown, no extra text.""")
 
         
 
