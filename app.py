@@ -21,22 +21,10 @@ st.set_page_config(page_title="AI Research Assistant", layout="centered")
 st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
-    background-color: #758bfd;
+    background-color: #132261;
 }
-[data-testid="stSidebar"] {
-    background: rgba(255, 255, 255, 0.5);
-}
-[data-testid="stSidebarCollapsedControl"],
-[data-testid="collapsedControl"],
-section[data-testid="stSidebarCollapsedControl"],
-.st-emotion-cache-wgk7qv,
-button[kind="header"] {
-    background-color: #ff8600 !important;
-    border-radius: 8px;
-}
-[data-testid="stSidebarCollapsedControl"]:hover,
-[data-testid="collapsedControl"]:hover {
-    background-color: #e67a00 !important;
+[data-testid="stSidebarContent"] {
+    background-color: #FF94AF;
 }
 </style>
 """, unsafe_allow_html=True)
