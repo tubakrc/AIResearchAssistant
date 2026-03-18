@@ -26,6 +26,12 @@ st.markdown("""
 [data-testid="stSidebarContent"] {
     background-color: #FF94AF;
 }
+[data-testid="stSidebarContent"] * {
+    color: #132261 !important;
+}
+[data-testid="stMainBlockContainer"] * {
+    color: #FF94AF !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
