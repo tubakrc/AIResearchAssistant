@@ -30,7 +30,7 @@ An AI-powered research agent that automates web + Wikipedia search using tools, 
 
 ## 📸 Demo
 
-<img width="1911" height="2086" alt="AIResearchAssistant" src="https://github.com/user-attachments/assets/959cec9a-b63a-4897-9437-b9eeaef702bf" />
+<img width="1920" height="2161" alt="AIResearchAssistant" src="https://github.com/user-attachments/assets/ef02724b-462c-40f4-b7c7-b45ceca6d139" />
 
 ---
 
