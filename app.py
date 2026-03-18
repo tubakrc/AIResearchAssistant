@@ -21,16 +21,16 @@ st.set_page_config(page_title="AI Research Assistant", layout="centered")
 st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
-    background-color: #F8EDAD ; 
+    background-color: #FF94AF ; 
 }
 [data-testid="stSidebarContent"] {
-    background-color: #700143;
+    background-color: #132261;
 }
 [data-testid="stSidebarContent"] * {
-    color: #F8EDAD !important;
+    color: #FF94AF !important;
 }
 [data-testid="stMainBlockContainer"] * {
-    color: #700143 !important;
+    color: #132261 !important;
 }
 </style>
 """, unsafe_allow_html=True)
